@@ -6,6 +6,7 @@
 void pretty_print_value(JsonValue* value, const char* source, int indent);
 void pretty_print_object(JsonPair* pair, const char* source, int indent);
 void pretty_print_array(JsonArray* arr, const char* source, int indent);
+int isEnd(json_parser* p);
 JsonValue* parseJsonValue(json_parser* p);
 
 void freeJsonString(JsonString* str) {
@@ -177,6 +178,19 @@ void nextChar(json_parser* p) {
     p->currentIndex++;
     p->currentChar = p->source[p->currentIndex];
 
+    //COMMENTS
+    if(p->currentChar == '#'){
+    
+    p->currentIndex++;
+    p->currentChar = p->source[p->currentIndex];
+
+    while (p->currentChar != '\n' && !isEnd(p)){
+        p->currentIndex++;
+        p->currentChar = p->source[p->currentIndex];
+      }
+    }
+
+    //we dont need Whitespaces!
     while (isspace(p->currentChar))
     {
       p->currentIndex++;
@@ -191,13 +205,6 @@ void nextChar(json_parser* p) {
 
 TOKEN_TYPE toType(json_parser* p) {
 
-
-    while (isspace(p->currentChar))
-    {
-        nextChar(p);
-    }
-    
-    
 
     switch (p->currentChar)
     {
@@ -305,8 +312,9 @@ JsonString* parseJsonString(json_parser* p) {
         while ((toType(p) != STR && !isEnd(p)))
         {
             end++;
+            p->currentIndex++;
+            p->currentChar = p->source[p->currentIndex];
             
-            nextChar(p);
 
             while(toType(p) == ESCAPE) {
                 p->currentIndex+=2;
