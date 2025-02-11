@@ -7,6 +7,70 @@ void pretty_print_value(JsonValue* value, const char* source, int indent);
 void pretty_print_object(JsonPair* pair, const char* source, int indent);
 void pretty_print_array(JsonArray* arr, const char* source, int indent);
 JsonValue* parseJsonValue(json_parser* p);
+
+void freeJsonString(JsonString* str) {
+    if (str) {
+        // Falls die Struktur dynamisch Allokationen enthält, hier freigeben
+        free(str);
+    }
+}
+
+void freeJsonValue(JsonValue* value) {
+    if (!value) {
+        return;
+    }
+
+    switch (value->type) {
+        case JSON_STRING:
+            freeJsonString(value->str);
+            break;
+        case JSON_ARRAY:
+            if (value->arr) {
+                for (size_t i = 0; i < value->arr->used; i++) {
+                    freeJsonValue(value->arr->items[i]); // Rekursiv jedes Element im Array freigeben
+                }
+                free(value->arr->items); // Das Array selbst freigeben
+                free(value->arr); // Die Struktur des Arrays freigeben
+            }
+            break;
+        case JSON_OBJECT:
+            {
+                JsonPair* current = value->obj;
+                while (current) {
+                    JsonPair* next = current->child;
+                    freeJsonString(current->key);
+                    freeJsonValue(current->value);
+                    free(current);
+                    current = next;
+                }
+            }
+            break;
+        default:
+            // Keine dynamische Speicherzuteilung für JSON_INT oder JSON_BOOL nötig
+            break;
+    }
+
+    free(value); // Schließlich die JsonValue-Struktur selbst freigeben
+}
+
+void freeJson(json* obj) {
+    if (!obj) {
+        return;
+    }
+
+    JsonPair* current = obj->pairs;
+    while (current) {
+        JsonPair* next = current->child;
+        freeJsonString(current->key);
+        freeJsonValue(current->value);
+        free(current);
+        current = next;
+    }
+
+    free(obj); // Die Top-Level-JSON-Struktur freigeben
+}
+
+
 // Gibt einen JsonValue formatiert aus.
 void pretty_print_value(JsonValue* value, const char* source, int indent) {
     if (value == NULL) {
@@ -179,6 +243,7 @@ int expect(TOKEN_TYPE type ,json_parser* p) {
     }
 
     printf("Expected %d: got %c\n", type, p->currentChar);
+    p->error = 1;
 
     return 0;
 
@@ -210,6 +275,7 @@ json_parser* init_parser(char* source) {
     p->currentChar = source[0];
     p->currentIndex = 0;
     p->source = source;
+    p->error = 0;
     return p;
 }
 
@@ -380,6 +446,10 @@ json* parseJsonFromString(char* JsonString) {
     expect(CURLY_OPEN_BRACKET, p);
     newJson->pairs = parseJsonPair(p);
     expect(CURLY_CLOSE_BRACKET, p);
+
+    if(p->error == 1) {
+        freeJson(newJson);
+    }
 
     free(p);
 

@@ -71,6 +71,7 @@ typedef struct {
     char* source;
     char currentChar; 
     size_t currentIndex; 
+    int error;
 } json_parser;
 
 /* JsonValue – der zentrale Typ, der einen JSON-Wert (String, Zahl, Objekt, Array etc.) repräsentiert */
@@ -106,6 +107,7 @@ typedef struct {
 
 
 json* parseJsonFromString(char* jsonString);
+void freeJson(json* obj);
 void pretty_print_json(const json* j, const char* source);
 
 
